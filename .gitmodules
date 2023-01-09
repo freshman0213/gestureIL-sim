@@ -1,4 +1,3 @@
-[submodule "mano_pybullet"]
-	path = mano_pybullet
-	url = git@github.com:ychao-nvidia/mano_pybullet.git
-	branch = handover-sim
+[submodule "modified_easysim"]
+	path = modified_easysim
+	url = https://github.com/freshman0213/modified_easysim.git
