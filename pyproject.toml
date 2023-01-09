@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 # See the `setuptools_scm` documentation for the description of the schemes used below.
 # https://pypi.org/project/setuptools-scm/
-# NOTE: If these values are updated, they need to be also updated in `handover/__init__.py`.
+# NOTE: If these values are updated, they need to be also updated in `gestureIL/__init__.py`.
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
 local_scheme = "dirty-tag"

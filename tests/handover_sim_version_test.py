@@ -2,13 +2,13 @@
 #
 # Licensed under the BSD 3-Clause License [see LICENSE for details].
 
-"""Unit tests for the `handover-sim` package version."""
+"""Unit tests for the `gestureIL-sim` package version."""
 
 # SRL
-import handover
+import gestureIL
 
 
-def test_handover_sim_version() -> None:
-    """Test `handover-sim` package version is set."""
-    assert handover.__version__ is not None
-    assert handover.__version__ != ""
+def test_gestureIL_sim_version() -> None:
+    """Test `gestureIL-sim` package version is set."""
+    assert gestureIL.__version__ is not None
+    assert gestureIL.__version__ != ""
