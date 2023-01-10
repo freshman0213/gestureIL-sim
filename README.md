@@ -17,7 +17,7 @@ git submodule update --init --recursive
 - install easysim
     ```Shell
     cd modified_easysim
-    pip install -e .[dev]
+    pip install -e .
     ```
 - install gestureIL
     ```Shell
