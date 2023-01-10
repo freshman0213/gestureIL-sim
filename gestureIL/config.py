@@ -82,7 +82,7 @@ if not _C.ENV.MANO_POSE_RANDOMIZATION:
 
     _C.ENV.MANO_MODEL_FILENAME = "20200709-subject-01_left"
 
-    _C.ENV.MANO_POSE_FILENAME = "/home/iliad/gestureIL/assets/mano_poses/pointing_7_left.npy"
+    _C.ENV.MANO_POSE_FILENAME = "gestureIL/data/mano_poses/pointing_7_left.npy"
 
     _C.ENV.MANO_INITIAL_TARGET = _C.ENV.PRIMITIVE_OBJECT_BASE_POSITION[_C.ENV.PICKED_OBJECT_IDX]
     

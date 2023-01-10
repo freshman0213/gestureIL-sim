@@ -37,7 +37,12 @@ class MANO:
             else:
                 poses = ['pointing_1', 'pointing_with_tube']
             pose = np.random.choice(poses)
-            self._cfg.ENV.MANO_POSE_FILENAME = '/home/iliad/gestureIL/assets/mano_poses/' + pose + '_' + side + '.npy'
+            self._cfg.ENV.MANO_POSE_FILENAME = os.path.join(
+                os.path.dirname(__file__),
+                "data",
+                "mano_poses",
+                pose + "_" + side + ".npy"
+            )
             # Notes: A small box around the center of the picked object
             offset = np.random.rand(3) * self._cfg.ENV.PRIMITIVE_OBJECT_SIZE / 4
             picked_object_position = self._cfg.ENV.PRIMITIVE_OBJECT_BASE_POSITION[self._cfg.ENV.PICKED_OBJECT_IDX]
