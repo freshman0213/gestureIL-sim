@@ -50,11 +50,11 @@ del _get_version
 from gym.envs.registration import register
 
 register(
-    id="GestureILPandaEnv",
+    id="GestureILPandaEnv-v0",
     entry_point='gestureIL.gestureIL_panda_env:GestureILPandaEnv'
 )
 
 register(
-    id="GestureILManoEnv",
+    id="GestureILManoEnv-v0",
     entry_point='gestureIL.gestureIL_mano_env:GestureILManoEnv'
 )

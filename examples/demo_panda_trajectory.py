@@ -12,7 +12,7 @@ from gestureIL.policy import ScriptedPolicy
 def main():
     # Notes: cfg.ENV is from gestureIL.config, cfg.SIM is from easysim.config
     cfg = get_config_from_args()
-    env = gym.make('GestureILPandaEnv', cfg=cfg)
+    env = gym.make('GestureILPandaEnv-v0', cfg=cfg)
 
     while True:
         observation = env.reset()

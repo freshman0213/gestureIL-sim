@@ -13,7 +13,7 @@ def main():
     # Notes: cfg.ENV is from gestureIL.config, cfg.SIM is from easysim.config
     cfg = get_config_from_args()
     np.random.seed(cfg.ENV.RANDOM_SEED)
-    env = gym.make('GestureILManoEnv', cfg=cfg)
+    env = gym.make('GestureILManoEnv-v0', cfg=cfg)
 
     while True:
         env.reset()
