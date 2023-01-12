@@ -12,8 +12,8 @@ class Policy(abc.ABC):
     def finished(self):
         """ """
 
-HORIZONTAL_REACH_THRESHOLD = 7e-3
-VERTICAL_REACH_THRESHOLD = 7e-3
+HORIZONTAL_REACH_THRESHOLD = 0.01
+VERTICAL_REACH_THRESHOLD = 0.01
 class ScriptedPolicy(Policy):
     def __init__(self, env):
         self._env = env
@@ -27,20 +27,27 @@ class ScriptedPolicy(Policy):
         self._execution_phase = 0
         panda_hand_position = self._panda.body.link_state[0, self._panda.LINK_IND_HAND, 0:3].numpy()
         picked_object_position = self._picked_object.link_state[0, 0, 0:3].numpy()
-        self._target_hand_position = np.array([
+        perfect_hand_position = np.array([
             picked_object_position[0] + 0.005,
             picked_object_position[1],
             panda_hand_position[2],
         ])
+        randomization = np.random.normal(0, 0.2, 3) * np.array([0.025, 0.025, 0.075])
+        self._target_hand_position = perfect_hand_position + randomization
         # self._target_fingers_position = (0.04, 0.04)
 
-    def _move(self, with_object=False):
+    def _move(self, noise_level=0, with_object=False):
         panda_hand_position = self._panda.body.link_state[0, self._panda.LINK_IND_HAND, 0:3].numpy()
         if not np.allclose(panda_hand_position, self._target_hand_position, atol=HORIZONTAL_REACH_THRESHOLD):
-            displacement = self._target_hand_position - panda_hand_position
-            self.action = np.clip(np.concatenate((np.around(displacement / 0.005).astype(int) + 10, [10 if not with_object else 9])), 0, 20)
+            perfect_displacement = self._target_hand_position - panda_hand_position
+            noise = np.random.normal(0, 0.2, 3) * noise_level
+            noisy_displacement = perfect_displacement + noise
+            noisy_displacement[(perfect_displacement * noisy_displacement) < 0] = 0
+            self.action = np.concatenate((np.clip((np.around(noisy_displacement / 0.025).astype(int) + 2), 0, 4), [1 if with_object else 0]))
             return True
         else:
+            noise = np.random.normal(0, 0.2, 3) * noise_level
+            self.action = np.concatenate((np.clip((np.around(noise / 0.025).astype(int) + 2), 0, 4), [1 if with_object else 0]))
             return False
 
     def _object_picked(self):
@@ -69,73 +76,60 @@ class ScriptedPolicy(Policy):
 
     def react(self, observation):
         panda_hand_position = self._panda.body.link_state[0, self._panda.LINK_IND_HAND, 0:3].numpy()
-        if self._execution_phase == 0:
-            if self._move():
-                return self.action
-            else:
-                self._target_hand_position = np.array([
-                    panda_hand_position[0],
-                    panda_hand_position[1],
-                    self._cfg.ENV.PRIMITIVE_OBJECT_SIZE + 0.08
-                ])
-                self._execution_phase += 1
-        if self._execution_phase == 1:
-            if self._move():
-                return self.action
-            else:
-                self._execution_phase += 1
-        if self._execution_phase == 2:
-            if not self._object_picked():
-                return np.array([10, 10, 10, 0])
-            else:
-                self._target_hand_position = (
-                    panda_hand_position[0],
-                    panda_hand_position[1],
-                    panda_hand_position[2] + 0.2
-                )
-                self._execution_phase += 1
-        if self._execution_phase == 3:
-            if self._move(with_object=True):
-                return self.action
-            else:
-                self._target_hand_position = (
-                    self._target_position[0],
-                    self._target_position[1],
-                    panda_hand_position[2]
-                )
-                self._execution_phase += 1
-        if self._execution_phase == 4:
-            if self._move(with_object=True):
-                return self.action
-            else:
-                self._target_hand_position = (
-                    panda_hand_position[0],
-                    panda_hand_position[1],
-                    self._cfg.ENV.PRIMITIVE_OBJECT_SIZE + 0.08
-                )
-                self._execution_phase += 1
-        if self._execution_phase == 5:
-            if self._move(with_object=True):
-                return self.action
-            else:
-                self._execution_phase += 1
-        if self._execution_phase == 6:
-            if self._object_picked():
-                return np.array([10, 10, 10, 20])
-            else:
-                self._target_hand_position = (
-                    panda_hand_position[0],
-                    panda_hand_position[1],
-                    panda_hand_position[2] + 0.2
-                )
-                self._execution_phase += 1
-        if self._execution_phase == 7:
-            if self._move():
-                return self.action
-            else:
-                self._execution_phase += 1
+        if self._execution_phase == 0 and not self._move(noise_level=0.025):
+            perfect_hand_position = np.array([
+                panda_hand_position[0],
+                panda_hand_position[1],
+                self._cfg.ENV.PRIMITIVE_OBJECT_SIZE + 0.08
+            ])
+            randomization = np.random.normal(0, 0.2, 3) * np.array([0, 0, 0.025])
+            self._target_hand_position = perfect_hand_position + randomization
+            self._execution_phase += 1
+        if self._execution_phase == 1 and not self._move(noise_level=np.array([0, 0, 0.025])):
+            self._execution_phase += 1
+        if self._execution_phase == 2 and not self._move(noise_level=0, with_object=True) and self._object_picked():
+            perfect_hand_position = (
+                panda_hand_position[0],
+                panda_hand_position[1],
+                panda_hand_position[2] + 0.2
+            )
+            randomization = np.random.normal(0, 0.2, 3) * np.array([0, 0, 0.075])
+            self._target_hand_position = perfect_hand_position + randomization
+            self._execution_phase += 1
+        if self._execution_phase == 3 and not self._move(noise_level=np.array([0, 0, 0.025]), with_object=True):
+            perfect_hand_position = (
+                self._target_position[0],
+                self._target_position[1],
+                panda_hand_position[2]
+            )
+            randomization = np.random.normal(0, 0.2, 3) * np.array([0.025, 0.025, 0])
+            self._target_hand_position = perfect_hand_position + randomization
+            self._execution_phase += 1
+        if self._execution_phase == 4 and not self._move(noise_level=np.array([0.025, 0.025, 0]), with_object=True):
+            perfect_hand_position = (
+                panda_hand_position[0],
+                panda_hand_position[1],
+                self._cfg.ENV.PRIMITIVE_OBJECT_SIZE + 0.08
+            )
+            randomization = np.random.normal(0, 0.2, 3) * np.array([0, 0, 0.025])
+            self._target_hand_position = perfect_hand_position + randomization
+            self._execution_phase += 1
+        if self._execution_phase == 5 and not self._move(noise_level=np.array([0, 0, 0.025]), with_object=True):
+            self._execution_phase += 1
+        if self._execution_phase == 6 and not self._move(noise_level=0) and not self._object_picked():
+            perfect_hand_position = (
+                panda_hand_position[0],
+                panda_hand_position[1],
+                panda_hand_position[2] + 0.2
+            )
+            randomization = np.random.normal(0, 0.2, 3) * np.array([0, 0, 0.075])
+            self._target_hand_position = perfect_hand_position + randomization
+            self._execution_phase += 1
+        if self._execution_phase == 7 and not self._move(noise_level=np.array([0, 0, 0.025])):
+            self._execution_phase += 1
         if self._execution_phase == 8:
-            return np.array([10, 10, 10, 10])
+            self._move()
+        return self.action
 
 
         # panda_hand_position = self._panda.body.link_state[0, self._panda.LINK_IND_HAND, 0:3].numpy()
