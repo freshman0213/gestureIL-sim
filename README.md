@@ -26,6 +26,13 @@ git submodule update --init --recursive
     ```
 
 
+# Demo
+
+```Shell
+python examples/demo_panda_trajectory.py SIM.RENDER True
+python examples/demo_hand_gesture.py SIM.RENDER True
+```
+
 # Acknowledgements
 
 The code is adopted from [handover-sim](https://github.com/NVlabs/handover-sim).
