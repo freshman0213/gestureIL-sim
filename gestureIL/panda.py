@@ -56,17 +56,18 @@ class Panda:
         return self._control_type
 
     def step(self, action):
-        action = np.clip(action, 0, 20)
-        ee_displacement = (action[:3] - 10) * 0.005
+        action = np.clip(action, 0, 5)
+        ee_displacement = (action[:3] - 2) * 0.025
         ee_target_position = self.body.link_state[0, self.LINK_IND_HAND, 0:3].numpy() + ee_displacement
         ee_target_orientation = [1, 0, 0, 0]
         target_arm_angles = pybullet.calculateInverseKinematics(
             self.body.contact_id[0], self.LINK_IND_HAND-1, ee_target_position, ee_target_orientation
         )[:7]
 
-        fingers_ctrl = (action[-1] - 10) * 0.02
-        fingers_width = self.body.dof_state[0, 7, 0] + self.body.dof_state[0, 8, 0]
-        target_fingers_width = fingers_width + fingers_ctrl
+        if action[-1] == 0:
+            target_fingers_width = 0.08
+        else:
+            target_fingers_width = 0
         self.body.dof_target_position = np.concatenate((target_arm_angles, [target_fingers_width / 2, target_fingers_width / 2]))
 
 
