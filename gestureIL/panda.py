@@ -56,7 +56,7 @@ class Panda:
         return self._control_type
 
     def step(self, action):
-        action = np.clip(action, 0, 5)
+        action = np.clip(action, 0, 4)
         ee_displacement = (action[:3] - 2) * 0.025
         ee_target_position = self.body.link_state[0, self.LINK_IND_HAND, 0:3].numpy() + ee_displacement
         ee_target_orientation = [1, 0, 0, 0]

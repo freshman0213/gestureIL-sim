@@ -11,8 +11,6 @@ class GestureILManoEnv(easysim.SimulatorEnv):
     def init(self):
         self._table = Table(self.cfg, self.scene)
         self._panda = Panda(self.cfg, self.scene)
-        # Notes: Keep the panda arm fixed
-        self.panda.body.dof_target_position = self.panda.body.initial_dof_position
         self._primitive_object = PrimitiveObject(self.cfg, self.scene)
         self._mano_hand = MANO(self.cfg, self.scene)
 
@@ -67,6 +65,7 @@ class GestureILManoEnv(easysim.SimulatorEnv):
 
     def pre_step(self, action):
         self.mano_hand.step()
+        self.panda.step([2, 2, 2, 0])
 
     def post_step(self, action):
         self._frame += 1
