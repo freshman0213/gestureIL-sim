@@ -87,10 +87,7 @@ class GestureILManoEnv(easysim.SimulatorEnv):
         return None
 
     def _get_done(self):
-        if np.allclose(self.mano_hand.body.dof_state[0, :, 0], self.mano_hand.body.dof_target_position, atol=3e-3):
-            return True
-        else:
-            return False
+        return None
 
     def _get_info(self):
         return {}

@@ -24,13 +24,13 @@ def main():
                 os.makedirs(os.path.join(cfg.ENV.RENDER_DIR, str(i)), exist_ok=True)
             store_image(cfg.ENV.RENDER_DIR, env)
 
-        observation, reward, done, info = env.step(None)
+        env.step(None)
 
         if cfg.ENV.RENDER_OFFSCREEN:
             store_image(cfg.ENV.RENDER_DIR, env)
 
-        while not done:
-            observation, reward, done, info = env.step(None)
+        while not env.mano_hand.finished():
+            env.step(None)
 
             if cfg.ENV.RENDER_OFFSCREEN:
                 store_image(cfg.ENV.RENDER_DIR, env)
