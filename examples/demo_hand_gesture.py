@@ -19,28 +19,27 @@ def main():
         env.reset()
 
         if cfg.ENV.RENDER_OFFSCREEN:
+            os.makedirs(cfg.ENV.RENDER_DIR, exist_ok=True)
+            for i in range(cfg.ENV.NUM_OFFSCREEN_RENDERER_CAMERA):
+                os.makedirs(os.path.join(cfg.ENV.RENDER_DIR, str(i)), exist_ok=True)
             store_image(cfg.ENV.RENDER_DIR, env)
-        else:
-            time.sleep(0.01)
 
         observation, reward, done, info = env.step(None)
 
         if cfg.ENV.RENDER_OFFSCREEN:
             store_image(cfg.ENV.RENDER_DIR, env)
-        else:
-            time.sleep(0.01)
 
         while not done:
             observation, reward, done, info = env.step(None)
 
             if cfg.ENV.RENDER_OFFSCREEN:
                 store_image(cfg.ENV.RENDER_DIR, env)
-            else:
-                time.sleep(0.01)
 
 def store_image(render_dir, env):
-    render_file = os.path.join('/home/iliad/gestureIL/assets/gesture_videos', render_dir, '{:06d}.jpg'.format(env.frame))
-    cv2.imwrite(render_file, env.render_offscreen()[:, :, [2, 1, 0, 3]])
+    images = env.render_offscreen()
+    for i in range(len(images)):
+        render_file = os.path.join(render_dir, str(i), '{:06d}.jpg'.format(env.frame))
+        cv2.imwrite(render_file, images[i][:, :, [2, 1, 0, 3]])
 
 if __name__ == '__main__':
     main()

@@ -36,25 +36,27 @@ class GestureILManoEnv(easysim.SimulatorEnv):
         return self._mano_hand
 
     def _render_offscreen_init(self):
-        camera = easysim.Camera()
-        camera.name = "offscreen_renderer"
-        camera.width = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_WIDTH
-        camera.height = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_HEIGHT
-        camera.vertical_fov = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_VERTICAL_FOV
-        camera.near = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_NEAR
-        camera.far = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_FAR
-        camera.position = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_POSITION
-        camera.target = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_TARGET
-        camera.up_vector = (0.0, 0.0, 1.0)
-        self.scene.add_camera(camera)
-        self._camera = camera
+        self._cameras = []
+        for i in range(self.cfg.ENV.NUM_OFFSCREEN_RENDERER_CAMERA):
+            camera = easysim.Camera()
+            camera.name = f"offscreen_renderer_{i}"
+            camera.width = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_WIDTH
+            camera.height = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_HEIGHT
+            camera.vertical_fov = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_VERTICAL_FOV
+            camera.near = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_NEAR
+            camera.far = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_FAR
+            camera.position = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_POSITION[i]
+            camera.target = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_TARGET[i]
+            camera.up_vector = (0.0, 0.0, 1.0)
+            self.scene.add_camera(camera)
+            self._cameras.append(camera)
     
     def render_offscreen(self):
         if not self.cfg.ENV.RENDER_OFFSCREEN:
             raise ValueError(
                 "`render_offscreen()` can only be called when RENDER_OFFSCREEN is set to True"
             )
-        return self._camera.color[0].numpy()
+        return [camera.color[0].numpy() for camera in self._cameras]
 
     def pre_reset(self, env_ids):
         self.mano_hand.reset()
