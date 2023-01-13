@@ -3,6 +3,7 @@ import easysim
 import os
 import torch
 from scipy.spatial.transform import Rotation as R
+from scipy.interpolate import interp1d
 
 
 class MANO:
@@ -69,7 +70,6 @@ class MANO:
         
         self._clean()
         self._make()
-        self.body.dof_target_position = np.array(self.final_body_translation + self.final_body_rotation + self.body_pose)
 
     def _clean(self):
         if self.body is not None:
@@ -92,23 +92,19 @@ class MANO:
             body.initial_base_position = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 
             # Notes: Compute the hand position, rotation
-            self.initial_body_translation = list(self._cfg.ENV.MANO_INITIAL_BASE)
-            self.final_body_translation = list(self._cfg.ENV.MANO_FINAL_BASE)
+            self.num_timeframes = 10
+            linfit = interp1d([0, 1], np.vstack([np.array(self._cfg.ENV.MANO_INITIAL_BASE), np.array(self._cfg.ENV.MANO_FINAL_BASE)]), axis=0)
+            self.intermediate_body_translation = linfit(np.arange(0.0, 1+1e-8, 1 / self.num_timeframes)) 
+
+            linfit = interp1d([0, 1], np.vstack([np.array(self._cfg.ENV.MANO_INITIAL_TARGET), np.array(self._cfg.ENV.MANO_FINAL_TARGET)]), axis=0)
+            self.intermediate_target = linfit(np.arange(0.0, 1+1e-8, 1 / self.num_timeframes))
             
             mano_side = self._cfg.ENV.MANO_MODEL_FILENAME.split('_')[-1]
-            self.initial_body_rotation = self.get_intrinsic_euler_rotation_angle(
-                mano_side, 
-                self._cfg.ENV.MANO_INITIAL_TARGET, 
-                self._cfg.ENV.MANO_INITIAL_BASE
-            )
-            self.final_body_rotation = self.get_intrinsic_euler_rotation_angle(
-                mano_side,
-                self._cfg.ENV.MANO_FINAL_TARGET, 
-                self._cfg.ENV.MANO_FINAL_BASE
-            )
+            self.intermediate_rotation = np.array([self.get_intrinsic_euler_rotation_angle(mano_side, self.intermediate_target[t], self.intermediate_body_translation[t]) for t in range(self.num_timeframes+1)])
             
-            self.body_pose = np.load(self._cfg.ENV.MANO_POSE_FILENAME).tolist()
-            body.initial_dof_position = torch.tensor(self.initial_body_translation + self.initial_body_rotation + self.body_pose)
+            self.body_pose = np.load(self._cfg.ENV.MANO_POSE_FILENAME)
+            body.initial_dof_position = np.concatenate((self.intermediate_body_translation[0], self.intermediate_rotation[0], self.body_pose))
+            self.next_timeframe = 1
 
             body.initial_dof_velocity = [0.0] * 51
             if self._cfg.SIM.SIMULATOR == "bullet":
@@ -176,9 +172,11 @@ class MANO:
         )
         return rotation.as_euler("XYZ").tolist()
 
-    # TODO : interpolate between the initial rotation and the final rotation (the current implementation cannot produce natural interpolated movement)
     def step(self):
-        return
+        self.body.dof_target_position = np.concatenate((self.intermediate_body_translation[self.next_timeframe], self.intermediate_rotation[self.next_timeframe], self.body_pose)) 
+        while not np.allclose(self.body.dof_state[0, :, 0].numpy(), self.body.dof_target_position, atol=0.01):
+            return 
+        self.next_timeframe += 1
 
     def finished(self):
-        return np.allclose(self.body.dof_state[0, :, 0].numpy(), self.body.dof_target_position, atol=0.01)
+        return self.next_timeframe == self.num_timeframes+1
