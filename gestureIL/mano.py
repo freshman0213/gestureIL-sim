@@ -69,6 +69,7 @@ class MANO:
         
         self._clean()
         self._make()
+        self.body.dof_target_position = np.array(self.final_body_translation + self.final_body_rotation + self.body_pose)
 
     def _clean(self):
         if self.body is not None:
@@ -138,10 +139,6 @@ class MANO:
             self._scene.add_body(body)
             self._body = body
 
-    # TODO: interpolate between the initial rotation and the final rotation (the current implementation cannot produce natural interpolated movement)
-    def step(self):
-        self.body.dof_target_position = torch.tensor(self.final_body_translation + self.final_body_rotation + self.body_pose)
-
     def get_intrinsic_euler_rotation_angle(self, mano_side, pointing_position, hand_base_position):
         normalize = lambda x: x / np.linalg.norm(x)
 
@@ -178,3 +175,10 @@ class MANO:
             np.stack((hand_facing_direction_target_frame, pointing_direction_target_frame))
         )
         return rotation.as_euler("XYZ").tolist()
+
+    # TODO : interpolate between the initial rotation and the final rotation (the current implementation cannot produce natural interpolated movement)
+    def step(self):
+        return
+
+    def finished(self):
+        return np.allclose(self.body.dof_state[0, :, 0].numpy(), self.body.dof_target_position, atol=0.01)
