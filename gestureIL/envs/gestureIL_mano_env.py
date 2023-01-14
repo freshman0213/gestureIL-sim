@@ -1,20 +1,18 @@
 import easysim
 import numpy as np
 
-from gestureIL.table import Table
-from gestureIL.panda import Panda
-from gestureIL.primitive_object import PrimitiveObject
-from gestureIL.mano import MANO
+from gestureIL.objects.table import Table
+from gestureIL.objects.panda import Panda
+from gestureIL.objects.primitive_object import PrimitiveObject
+from gestureIL.objects.mano import MANO
 
-class GestureILManoPandaEnv(easysim.SimulatorEnv):
+class GestureILManoEnv(easysim.SimulatorEnv):
     # Notes: This is called by easysim.SimulatorEnv __init__()
     def init(self):
         self._table = Table(self.cfg, self.scene)
         self._panda = Panda(self.cfg, self.scene)
         self._primitive_object = PrimitiveObject(self.cfg, self.scene)
         self._mano_hand = MANO(self.cfg, self.scene)
-        # Notes: phase 0 is for MANO hand to move, phase 1 is for panda to move
-        self._phase = 0
 
         if self.cfg.ENV.RENDER_OFFSCREEN:
             self._render_offscreen_init()
@@ -58,28 +56,20 @@ class GestureILManoPandaEnv(easysim.SimulatorEnv):
             )
         return [camera.color[0].numpy() for camera in self._cameras]
 
-    def switch_phase(self):
-        self._phase ^= 1
-    
     def pre_reset(self, env_ids):
-        if self._phase == 0:
-            self.mano_hand.reset()
-        else:
-            self.mano_hand._clean()
+        self.mano_hand.reset()
 
     def post_reset(self, env_ids):
         self._frame = 0
         return self._get_observation()
 
     def pre_step(self, action):
-        if self._phase == 0:
-            self.mano_hand.step()
-            self.panda.step([2, 2, 2, 0])
-        else:
-            self.panda.step(action)
+        self.mano_hand.step()
+        self.panda.step([2, 2, 2, 0])
 
     def post_step(self, action):
         self._frame += 1
+
         observation = self._get_observation()
         reward = self._get_reward()
         done = self._get_done()

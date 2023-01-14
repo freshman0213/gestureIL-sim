@@ -1,17 +1,20 @@
 import easysim
 import numpy as np
 
-from gestureIL.table import Table
-from gestureIL.panda import Panda
-from gestureIL.primitive_object import PrimitiveObject
-from gestureIL.mano import MANO
+from gestureIL.objects.table import Table
+from gestureIL.objects.panda import Panda
+from gestureIL.objects.primitive_object import PrimitiveObject
+from gestureIL.objects.mano import MANO
 
-class GestureILPandaEnv(easysim.SimulatorEnv):
+class GestureILManoPandaEnv(easysim.SimulatorEnv):
     # Notes: This is called by easysim.SimulatorEnv __init__()
     def init(self):
         self._table = Table(self.cfg, self.scene)
         self._panda = Panda(self.cfg, self.scene)
         self._primitive_object = PrimitiveObject(self.cfg, self.scene)
+        self._mano_hand = MANO(self.cfg, self.scene)
+        # Notes: phase 0 is for MANO hand to move, phase 1 is for panda to move
+        self._phase = 0
 
         if self.cfg.ENV.RENDER_OFFSCREEN:
             self._render_offscreen_init()
@@ -55,15 +58,25 @@ class GestureILPandaEnv(easysim.SimulatorEnv):
             )
         return [camera.color[0].numpy() for camera in self._cameras]
 
+    def switch_phase(self):
+        self._phase ^= 1
+    
     def pre_reset(self, env_ids):
-        pass
+        if self._phase == 0:
+            self.mano_hand.reset()
+        else:
+            self.mano_hand._clean()
 
     def post_reset(self, env_ids):
         self._frame = 0
         return self._get_observation()
 
     def pre_step(self, action):
-        self.panda.step(action)
+        if self._phase == 0:
+            self.mano_hand.step()
+            self.panda.step([2, 2, 2, 0])
+        else:
+            self.panda.step(action)
 
     def post_step(self, action):
         self._frame += 1
@@ -73,42 +86,18 @@ class GestureILPandaEnv(easysim.SimulatorEnv):
         info = self._get_info()
         return observation, reward, done, info
     
-    # Notes: High-level control with lower frequency than the low-level PD controller
-    def step(self, action):
-        self.pre_step(action)
-        # Notes: High-level control runs at 5 Hz
-        for _ in range(int(0.2 / self.cfg.SIM.TIME_STEP)):
-            self._simulator.step()
-        observation, reward, done, info = self.post_step(action)
-        return observation, reward, done, info
-
     @property
     def frame(self):
         return self._frame
 
     def _get_observation(self):
-        # Notes: This observation space is adapted from the PandaPickAndPlace-v3 of panda-gym
-        #   (We discard achieved_goal because it is redundant and desired_goal because we need to infer it from the gesture video)
-        ee_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy() # We are using link frame position instead of center of mass
-        ee_velocity = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 7:10].numpy()
-        fingers_width = self.panda.body.dof_state[0, self.panda.LINK_IND_FINGERS[0]-2, 0] + self.panda.body.dof_state[0, self.panda.LINK_IND_FINGERS[1]-2, 0]
-        robot_obs = np.concatenate((ee_position, ee_velocity, [fingers_width])).astype(np.float32)
-
-        task_obs = np.array([])
-        for i in range(self.cfg.ENV.NUM_PRIMITIVE_OBJECTS):
-            object_position = self.primitive_object.bodies[i].link_state[0, 0, 0:3].numpy()
-            object_rotation = np.array(self._simulator._p.getEulerFromQuaternion(self.primitive_object.bodies[i].link_state[0, 0, 3:7]))
-            # object_velocity = self.primitive_object.bodies[i].link_state[0, 0, 7:10].numpy()
-            # object_angular_velocity = self.primitive_object.bodies[i].link_state[0, 0, 10:13].numpy()
-            # task_obs = np.concatenate([task_obs, object_position, object_rotation, object_velocity, object_angular_velocity]).astype(np.float32)
-            task_obs = np.concatenate([task_obs, object_position, object_rotation]).astype(np.float32)
-        return np.concatenate([robot_obs, task_obs])
+        return None
         
     def _get_reward(self):
         return None
 
     def _get_done(self):
-        return False
+        return None
 
     def _get_info(self):
         return {}

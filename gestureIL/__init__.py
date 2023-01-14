@@ -51,15 +51,15 @@ from gym.envs.registration import register
 
 register(
     id="GestureILPandaEnv-v0",
-    entry_point="gestureIL.gestureIL_panda_env:GestureILPandaEnv"
+    entry_point="gestureIL.envs.gestureIL_panda_env:GestureILPandaEnv"
 )
 
 register(
     id="GestureILManoEnv-v0",
-    entry_point="gestureIL.gestureIL_mano_env:GestureILManoEnv"
+    entry_point="gestureIL.envs.gestureIL_mano_env:GestureILManoEnv"
 )
 
 register(
     id="GestureILManoPandaEnv-v0",
-    entry_point="gestureIL.gestureIL_mano_panda_env:GestureILManoPandaEnv"
+    entry_point="gestureIL.envs.gestureIL_mano_panda_env:GestureILManoPandaEnv"
 )
