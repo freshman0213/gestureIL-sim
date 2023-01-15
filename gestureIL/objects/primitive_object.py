@@ -13,7 +13,7 @@ class PrimitiveObject:
                 'primitive_object_{:02d}'.format(i),
                 self._cfg.ENV.PRIMITIVE_OBJECT_MASS,
                 self._cfg.ENV.PRIMITIVE_OBJECT_BASE_POSITION[i],
-                (0.1, 0.9, 0.1, 1.0),
+                [0.1, 0.9, 0.1, 1.0],
                 self._cfg.ENV.COLLISION_FILTER_PRIMITIVE_OBJECT
             )
             self._scene.add_body(body)
@@ -23,12 +23,12 @@ class PrimitiveObject:
             body = self._create_body(
                 "target",
                 0,
-                (
+                [
                     self._cfg.ENV.TARGET_POSITION_X,
                     self._cfg.ENV.TARGET_POSITION_Y,
                     self._cfg.ENV.PRIMITIVE_OBJECT_SIZE / 2
-                ),
-                (1.0, 0.0, 0.0, 0.7),
+                ],
+                [1.0, 0.0, 0.0, 0.7],
                 0
             )
             self._scene.add_body(body)
@@ -48,11 +48,11 @@ class PrimitiveObject:
             raise ValueError(f'{self._cfg.ENV.PRIMITIVE_OBJECT_TYPE} is not supported by PrimitiveObject class.')
         half_size = self._cfg.ENV.PRIMITIVE_OBJECT_SIZE / 2
         if body.geometry_type == GeometryType.BOX:
-            body.box_half_extent = (half_size, half_size, half_size)
+            body.box_half_extent = [half_size, half_size, half_size]
         else:
             body.sphere_radius = half_size
         body.base_mass = mass
-        body.initial_base_position = (position + (0, 0, 0, 1))
+        body.initial_base_position = [position + [0, 0, 0, 1]]
         body.link_color = [color]
         body.link_collision_filter = [collision_filter]
         return body

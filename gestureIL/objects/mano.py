@@ -17,57 +17,6 @@ class MANO:
         return self._body
 
     def reset(self):
-        if self._cfg.ENV.MANO_POSE_RANDOMIZATION:
-            subject = np.random.choice([
-                '20200709-subject-01',
-                '20200813-subject-02',
-                '20200820-subject-03',
-                '20200903-subject-04',
-                '20200908-subject-05',
-                '20200918-subject-06',
-                '20200928-subject-07',
-                '20201002-subject-08',
-                '20201015-subject-09',
-                '20201022-subject-10'
-            ])
-            side = np.random.choice(['left', 'right'])
-            self._cfg.ENV.MANO_MODEL_FILENAME = subject + '_' + side
-            # Notes: These are the best looking poses we have for each side right now
-            if side == 'left':
-                poses = ['pointing_1', 'pointing_2']
-            else:
-                poses = ['pointing_1', 'pointing_with_tube']
-            pose = np.random.choice(poses)
-            self._cfg.ENV.MANO_POSE_FILENAME = os.path.join(
-                os.path.dirname(__file__),
-                "data",
-                "mano_poses",
-                pose + "_" + side + ".npy"
-            )
-            # Notes: A small box around the center of the picked object
-            offset = np.random.rand(3) * self._cfg.ENV.PRIMITIVE_OBJECT_SIZE / 4
-            picked_object_position = self._cfg.ENV.PRIMITIVE_OBJECT_BASE_POSITION[self._cfg.ENV.PICKED_OBJECT_IDX]
-            self._cfg.ENV.MANO_INITIAL_TARGET = (
-                picked_object_position[0] + offset[0],
-                picked_object_position[1] + offset[1],
-                picked_object_position[2] + offset[2]
-            )
-            self._cfg.ENV.MANO_INITIAL_BASE = (
-                0.2,
-                0.0,
-                self._cfg.ENV.PRIMITIVE_OBJECT_SIZE + 0.05
-            )
-            self._cfg.ENV.MANO_FINAL_TARGET = (
-                self._cfg.ENV.TARGET_POSITION_X,
-                self._cfg.ENV.TARGET_POSITION_Y,
-                self._cfg.ENV.PRIMITIVE_OBJECT_SIZE / 2
-            )
-            self._cfg.ENV.MANO_FINAL_BASE = (
-                self._cfg.ENV.MANO_FINAL_TARGET[0] + 0.1,
-                self._cfg.ENV.MANO_FINAL_TARGET[1],
-                self._cfg.ENV.PRIMITIVE_OBJECT_SIZE + 0.05
-            )
-        
         self._clean()
         self._make()
 
@@ -81,13 +30,7 @@ class MANO:
             body = easysim.Body()
             body.name = self._cfg.ENV.MANO_MODEL_FILENAME
             body.geometry_type = easysim.GeometryType.URDF
-            body.urdf_file = os.path.join(
-                os.path.dirname(__file__),
-                "data",
-                "assets",
-                self._cfg.ENV.MANO_MODEL_FILENAME,
-                "mano.urdf",
-            )
+            body.urdf_file = self._cfg.ENV.MANO_MODEL_FILENAME
             body.use_fixed_base = True
             body.initial_base_position = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 
@@ -99,7 +42,7 @@ class MANO:
             linfit = interp1d([0, 1], np.vstack([np.array(self._cfg.ENV.MANO_INITIAL_TARGET), np.array(self._cfg.ENV.MANO_FINAL_TARGET)]), axis=0)
             self.intermediate_target = linfit(np.arange(0.0, 1+1e-8, 1 / self.num_timeframes))
             
-            mano_side = self._cfg.ENV.MANO_MODEL_FILENAME.split('_')[-1]
+            mano_side = 'left' if 'left' in self._cfg.ENV.MANO_MODEL_FILENAME else 'right'
             self.intermediate_rotation = np.array([self.get_intrinsic_euler_rotation_angle(mano_side, self.intermediate_target[t], self.intermediate_body_translation[t]) for t in range(self.num_timeframes+1)])
             
             self.body_pose = np.load(self._cfg.ENV.MANO_POSE_FILENAME)
