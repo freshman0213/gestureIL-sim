@@ -85,6 +85,18 @@ class GestureILManoPandaEnv(easysim.SimulatorEnv):
         done = self._get_done()
         info = self._get_info()
         return observation, reward, done, info
+
+    # Notes: High-level control with lower frequency than the low-level PD controller
+    def step(self, action):
+        if self._phase == 0:
+            return super().step(action)
+        else:
+            self.pre_step(action)
+            # Notes: High-level control runs at 5 Hz
+            for _ in range(int(0.2 / self.cfg.SIM.TIME_STEP)):
+                self._simulator.step()
+            observation, reward, done, info = self.post_step(action)
+            return observation, reward, done, info
     
     @property
     def frame(self):
