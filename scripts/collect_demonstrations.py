@@ -1,6 +1,7 @@
 import os
 import gym
 import cv2
+import shutil
 import numpy as np
 
 from gestureIL.config import get_config_from_args
@@ -10,8 +11,8 @@ def main():
     cfg = get_config_from_args()
     
     np.random.seed(cfg.ENV.RANDOM_SEED)
-    for t in range(1):
-        cfg.ENV.RENDER_DIR = os.path.join(cfg.ENV.RENDER_DIR, f'{t:03d}')
+    t = 0
+    while t < 200:
         cfg.ENV.TARGET_POSITION_X = np.random.uniform(-0.3, 0.1)
         cfg.ENV.TARGET_POSITION_Y = np.random.uniform(-0.3, 0.3)
         cfg.ENV.NUM_PRIMITIVE_OBJECTS = np.random.randint(2, 4)
@@ -55,21 +56,29 @@ def main():
         distance = np.random.uniform(0.05, 0.15)
         angle = np.random.uniform(0, 2 * np.pi)
         cfg.ENV.MANO_FINAL_BASE = (cfg.ENV.MANO_FINAL_TARGET + np.array([distance * np.cos(angle), distance * np.sin(angle), 0.05])).tolist()
-
         env = gym.make('GestureILManoPandaEnv-v0', cfg=cfg)
         env.reset()
 
-        gesture_render_dir = os.path.join(cfg.ENV.RENDER_DIR, 'gesture')
+        fail = False
+        render_dir_t = os.path.join(cfg.ENV.RENDER_DIR, f'{t:03d}')
+        gesture_render_dir = os.path.join(render_dir_t, 'gesture')
         os.makedirs(gesture_render_dir, exist_ok=True)
         for i in range(cfg.ENV.NUM_OFFSCREEN_RENDERER_CAMERA):
             os.makedirs(os.path.join(gesture_render_dir, str(i)), exist_ok=True)
         store_image(gesture_render_dir, env)
         while not env.mano_hand.finished():
             env.step(None)
+            if env.frame > 1000:
+                fail = True
+                break
+        if fail:
+            shutil.rmtree(render_dir_t) 
+            env.close()
+            continue
         store_image(gesture_render_dir, env)
         env.switch_phase()
 
-        demonstration_render_dir = os.path.join(cfg.ENV.RENDER_DIR, 'demonstration')
+        demonstration_render_dir = os.path.join(render_dir_t, 'demonstration')
         os.makedirs(demonstration_render_dir, exist_ok=True)
         for i in range(cfg.ENV.NUM_OFFSCREEN_RENDERER_CAMERA):
             os.makedirs(os.path.join(demonstration_render_dir, str(i)), exist_ok=True)
@@ -85,9 +94,18 @@ def main():
             store_image(demonstration_render_dir, env)
             actions.append(action)
             env.step(action)
+            if env.frame > 75:
+                fail = True
+                break
+        fail = fail or not np.allclose(env.primitive_object.bodies[cfg.ENV.PICKED_OBJECT_IDX].link_state[0, 0, 0:2], [cfg.ENV.TARGET_POSITION_X, cfg.ENV.TARGET_POSITION_Y], atol=0.03)
+        if fail:
+            shutil.rmtree(render_dir_t)
+            env.close()
+            continue
         actions = np.vstack(actions)
         np.save(os.path.join(demonstration_render_dir, 'actions.npy'), actions)
         env.close()
+        t += 1
 
 
 def store_image(render_dir, env):
