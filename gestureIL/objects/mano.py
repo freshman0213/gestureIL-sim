@@ -35,7 +35,7 @@ class MANO:
             body.initial_base_position = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 
             # Notes: Compute the hand position, rotation
-            self.num_timeframes = 10
+            self.num_timeframes = 1
             linfit = interp1d([0, 1], np.vstack([np.array(self._cfg.ENV.MANO_INITIAL_BASE), np.array(self._cfg.ENV.MANO_FINAL_BASE)]), axis=0)
             self.intermediate_body_translation = linfit(np.arange(0.0, 1+1e-8, 1 / self.num_timeframes)) 
 
