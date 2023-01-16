@@ -120,7 +120,7 @@ class ScriptedPolicy(Policy):
             perfect_hand_position = (
                 panda_hand_position[0],
                 panda_hand_position[1],
-                panda_hand_position[2] + 0.2
+                panda_hand_position[2] + 0.1
             )
             randomization = np.random.normal(0, 0.2, 3) * np.array([0, 0, 0.075])
             self._target_hand_position = perfect_hand_position + randomization
