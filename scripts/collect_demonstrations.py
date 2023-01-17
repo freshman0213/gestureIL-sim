@@ -41,12 +41,7 @@ def main():
         ])
         hand_side = np.random.choice(['left', 'right'])
         cfg.ENV.MANO_MODEL_FILENAME = os.path.join('gestureIL/objects/data/assets', hand_model + '_' + hand_side, 'mano.urdf')
-        if hand_side == 'left':
-            poses = ['pointing_1', 'pointing_2']
-        else:
-            poses = ['pointing_1', 'pointing_with_tube']
-        # TODO: add more poses
-        hand_pose = np.random.choice(poses)
+        hand_pose = np.random.randint(1, 5)
         cfg.ENV.MANO_POSE_FILENAME = os.path.join('gestureIL/objects/data/mano_poses', hand_pose + '_' + hand_side + '.npy')
         cfg.ENV.MANO_INITIAL_TARGET = (np.array(cfg.ENV.PRIMITIVE_OBJECT_BASE_POSITION[cfg.ENV.PICKED_OBJECT_IDX]) + np.random.uniform(-1, 1, 3) * cfg.ENV.PRIMITIVE_OBJECT_SIZE / 4).tolist()
         distance = np.random.uniform(0.05, 0.15)
