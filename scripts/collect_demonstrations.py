@@ -12,10 +12,10 @@ def main():
     
     np.random.seed(cfg.ENV.RANDOM_SEED)
     t = 0
-    while t < 200:
+    while t < 1000:
         cfg.ENV.TARGET_POSITION_X = np.random.uniform(-0.3, 0.1)
         cfg.ENV.TARGET_POSITION_Y = np.random.uniform(-0.3, 0.3)
-        cfg.ENV.NUM_PRIMITIVE_OBJECTS = np.random.randint(2, 4)
+        cfg.ENV.NUM_PRIMITIVE_OBJECTS = np.random.randint(2, 5)
         base_positions = []
         for i in range(cfg.ENV.NUM_PRIMITIVE_OBJECTS):
             while True:
