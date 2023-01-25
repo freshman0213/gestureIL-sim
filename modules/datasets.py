@@ -23,7 +23,7 @@ class DemonstrationDataset(torch.utils.data.Dataset):
         self.side_gestures_2 = []
         self.actions = []
         if split == "train":
-            start_idx, end_idx = 0, 200
+            start_idx, end_idx = 0, 600
         elif split == "test":
             start_idx, end_idx = 900, 1000
         else:
@@ -89,3 +89,27 @@ class DemonstrationDataset(torch.utils.data.Dataset):
             front_gesture_2 = self.transform(front_gesture_2)
             side_gesture_2 = self.transform(side_gesture_2)
         return front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2, torch.from_numpy(action)
+
+
+class OversampledDataset(torch.utils.data.Dataset):
+    def __init__(self, original_dataset, oversampled_action_idx):
+        self.original_dataset = original_dataset
+        self.actions = self.original_dataset.actions[:, oversampled_action_idx]
+
+        num_classes = np.unique(self.actions).shape[0]
+        max_num_samples = max([np.sum(self.actions == i) for i in range(num_classes)])
+        self.oversampled_indices = []
+        for i in range(num_classes):
+            indices = np.arange(self.actions.shape[0])[self.actions == i].tolist()
+            if len(indices) != max_num_samples:
+                indices += np.random.choice(indices, max_num_samples - len(indices)).tolist()
+            self.oversampled_indices += indices
+
+    def __len__(self):
+        return len(self.oversampled_indices)
+
+    def __getitem__(self, index):
+        original_index = self.oversampled_indices[index]
+        front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2, _ = self.original_dataset[original_index]
+        action = self.actions[original_index]
+        return front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2, action 
