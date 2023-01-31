@@ -23,7 +23,7 @@ class DemonstrationDataset(torch.utils.data.Dataset):
         self.side_gestures_2 = []
         self.actions = []
         if split == "train":
-            start_idx, end_idx = 0, 200
+            start_idx, end_idx = 0, 600
         elif split == "test":
             start_idx, end_idx = 900, 1000
         else:

@@ -65,10 +65,11 @@ if __name__ == "__main__":
     test_loader = torch.utils.data.DataLoader(testing_set, batch_size=1, shuffle=False, num_workers=4)
 
 
-    num_actions = 3 #TODO
+    num_actions = 4 #TODO
     max_epoch = args.num_epochs
 
-    encoder = MyEncoder(action_dim = num_actions).to(device).float()
+    encoder = MyEncoder(action_dim = num_actions).to(device)#.float()
+    loss_fn = nn.CrossEntropyLoss()
 
     optimizer = optim.Adam(encoder.parameters(), lr=0.0003, weight_decay=0.0005)
 
@@ -81,12 +82,16 @@ if __name__ == "__main__":
                 loss = 0
                 for iter_, data in enumerate(test_loader):
                     front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2, action = data ##
-                    front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2, action  = front_image.float().to(device),side_image.float().to(device), front_gesture_1.float().to(device),side_gesture_1.float().to(device),front_gesture_2.float().to(device), side_gesture_2.float().to(device),action.float().to(device) 
-                    sim_action_mean,action_log_stds, sim_action_std = encoder(front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2)
+                    front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2, action  = front_image.to(device),side_image.to(device), front_gesture_1.to(device),side_gesture_1.to(device),front_gesture_2.to(device), side_gesture_2.to(device),action.to(device) 
+                    predicted_x_action, predicted_y_action, predicted_z_action, predicted_gripper_action = encoder(front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2,status="eval")
 
-                    l2loss = nn.MSELoss()
-                    loss += l2loss(sim_action_mean, action)
-                    # print(action[:,0], sim_action_mean)
+#                     l2loss = nn.MSELoss()
+#                     loss += l2loss(sim_action_mean, action)
+                    loss += loss_fn(predicted_x_action, action[:, 0]) + \
+                        loss_fn(predicted_y_action, action[:, 1]) + \
+                        loss_fn(predicted_z_action, action[:, 2]) + \
+                        loss_fn(predicted_gripper_action, action[:, 3])
+#                     print(torch.argmax(nn.Softmax()(predicted_x_action)),torch.argmax(nn.Softmax()(predicted_y_action)),torch.argmax(nn.Softmax()(predicted_z_action)),torch.argmax(nn.Softmax()(predicted_gripper_action)), action)
                 print("validation loss:", loss.item())
                 valid_loss.append(loss.item())
                 if loss<bestloss:
@@ -97,12 +102,16 @@ if __name__ == "__main__":
         lossall=0
         for iter_, data in enumerate(train_loader):
             front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2, action = data ##
-            front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2, action  = front_image.float().to(device),side_image.float().to(device), front_gesture_1.float().to(device),side_gesture_1.float().to(device),front_gesture_2.float().to(device), side_gesture_2.float().to(device),action.float().to(device) 
+            front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2, action  = front_image.to(device),side_image.to(device), front_gesture_1.to(device),side_gesture_1.to(device),front_gesture_2.to(device), side_gesture_2.to(device),action.to(device) 
             optimizer.zero_grad()
-            sim_action_mean,action_log_stds, sim_action_std = encoder(front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2)
+            predicted_x_action, predicted_y_action, predicted_z_action, predicted_gripper_action = encoder(front_image, side_image, front_gesture_1, side_gesture_1, front_gesture_2, side_gesture_2,status="train")
 
-            l2loss = nn.MSELoss()
-            loss = l2loss(sim_action_mean, action)
+#             l2loss = nn.MSELoss()
+#             loss = l2loss(sim_action_mean, action)
+            loss = loss_fn(predicted_x_action, action[:, 0]) + \
+                        loss_fn(predicted_y_action, action[:, 1]) + \
+                        loss_fn(predicted_z_action, action[:, 2]) + \
+                        loss_fn(predicted_gripper_action, action[:, 3])
             loss.backward()
             optimizer.step()
             lossall+=loss.item()
