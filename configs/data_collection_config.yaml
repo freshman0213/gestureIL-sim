@@ -19,7 +19,7 @@ ENV:
   # MANO_FINAL_BASE
   ##### Offscreen Rendering #####
   RENDER_OFFSCREEN: True
-  RENDER_DIR: 'datasets/pick-and-place'
+  RENDER_DIR: 'datasets/pick-and-place-v2'
   NUM_OFFSCREEN_RENDERER_CAMERA: 2
-  OFFSCREEN_RENDERER_CAMERA_POSITION: [[0.45, 0.0, 0.6], [0.0, 0.6, 0.45]]
-  OFFSCREEN_RENDERER_CAMERA_TARGET: [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+  OFFSCREEN_RENDERER_CAMERA_POSITION: [[0.45, 0.0, 0.6], [-0.1, 0.6, 0.45]]
+  OFFSCREEN_RENDERER_CAMERA_TARGET: [[0.0, 0.0, 0.0], [-0.1, 0.0, 0.0]]

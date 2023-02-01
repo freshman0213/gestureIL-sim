@@ -11,9 +11,9 @@ _C.SIM.USE_DEFAULT_STEP_PARAMS = False
 
 _C.SIM.TIME_STEP = 0.001
 
-_C.SIM.INIT_VIEWER_CAMERA_POSITION = [0.0, 0.6, 0.45]
+_C.SIM.INIT_VIEWER_CAMERA_POSITION = [-0.1, 0.6, 0.45]
 
-_C.SIM.INIT_VIEWER_CAMERA_TARGET = [0.0, 0.0, 0.0]
+_C.SIM.INIT_VIEWER_CAMERA_TARGET = [-0.1, 0.0, 0.0]
 
 # ---------------------------------------------------------------------------- #
 # Environment config
@@ -31,7 +31,7 @@ _C.ENV.RANDOM_SEED = 0
 ##### Table #####
 _C.ENV.TABLE_LENGTH = 1.1
 
-_C.ENV.TABLE_WIDTH = 0.7
+_C.ENV.TABLE_WIDTH = 1.5
 
 _C.ENV.TABLE_HEIGHT = _C.SIM.GROUND_PLANE.DISTANCE
 
@@ -57,7 +57,7 @@ _C.ENV.PANDA_POSITION_GAIN = [0.01,] * 9
 _C.ENV.PANDA_VELOCITY_GAIN = [1.0,] * 9
 
 ##### Primitive Objects #####
-_C.ENV.NUM_PRIMITIVE_OBJECTS = 3
+_C.ENV.NUM_PRIMITIVE_OBJECTS = 1
 
 _C.ENV.COLLISION_FILTER_PRIMITIVE_OBJECT = 1
 
@@ -67,14 +67,14 @@ _C.ENV.PRIMITIVE_OBJECT_SIZE = 0.04
 
 _C.ENV.PRIMITIVE_OBJECT_MASS = 1.0
 
-_C.ENV.PRIMITIVE_OBJECT_BASE_POSITION = [[0.043, 0.208, 0.02], [-0.050, -0.069, 0.02], [-0.180, -0.265, 0.02]]
+_C.ENV.PRIMITIVE_OBJECT_BASE_POSITION = [[0.18, 0.0, 0.02]]
 
 _C.ENV.PICKED_OBJECT_IDX = 0
 
 ##### MANO Hand #####
-_C.ENV.MANO_MODEL_FILENAME = "gestureIL/objects/data/assets/20200709-subject-01_left/mano.urdf"
+_C.ENV.MANO_MODEL_FILENAME = "gestureIL/objects/data/assets/20200709-subject-01_right/mano.urdf"
 
-_C.ENV.MANO_POSE_FILENAME = "gestureIL/objects/data/mano_poses/pointing_1_left.npy"
+_C.ENV.MANO_POSE_FILENAME = "gestureIL/objects/data/mano_poses/1_right.npy"
 
 _C.ENV.MANO_INITIAL_TARGET = [0.043, 0.209, 0.02]
 

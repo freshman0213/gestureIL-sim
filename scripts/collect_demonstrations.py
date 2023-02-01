@@ -12,14 +12,13 @@ def main():
     
     np.random.seed(cfg.ENV.RANDOM_SEED)
     t = 0
-    while t < 1000:
-        cfg.ENV.TARGET_POSITION_X = np.random.uniform(-0.3, 0.1)
-        cfg.ENV.TARGET_POSITION_Y = np.random.uniform(-0.3, 0.3)
+    while t < 500:
+        cfg.ENV.TARGET_POSITION_X, cfg.ENV.TARGET_POSITION_Y = generate_random_position()
         cfg.ENV.NUM_PRIMITIVE_OBJECTS = np.random.randint(2, 5)
         base_positions = []
         for i in range(cfg.ENV.NUM_PRIMITIVE_OBJECTS):
             while True:
-                candidate_position = [np.random.uniform(-0.3, 0.1), np.random.uniform(-0.3, 0.3)]
+                candidate_position = generate_random_position()
                 conflict = False
                 for j in range(i):
                     conflict = conflict or abs(candidate_position[0] - base_positions[j][0]) < cfg.ENV.PRIMITIVE_OBJECT_SIZE or abs(candidate_position[1] - base_positions[j][1]) < cfg.ENV.PRIMITIVE_OBJECT_SIZE 
@@ -46,11 +45,11 @@ def main():
         cfg.ENV.MANO_INITIAL_TARGET = (np.array(cfg.ENV.PRIMITIVE_OBJECT_BASE_POSITION[cfg.ENV.PICKED_OBJECT_IDX]) + np.random.uniform(-1, 1, 3) * cfg.ENV.PRIMITIVE_OBJECT_SIZE / 4).tolist()
         distance = np.random.uniform(0.05, 0.15)
         angle = np.random.uniform(0, 2 * np.pi)
-        cfg.ENV.MANO_INITIAL_BASE = (cfg.ENV.MANO_INITIAL_TARGET + np.array([distance * np.cos(angle), distance * np.sin(angle), 0.05])).tolist()
+        cfg.ENV.MANO_INITIAL_BASE = (cfg.ENV.MANO_INITIAL_TARGET + np.array([distance * np.cos(angle), distance * np.sin(angle), np.random.uniform(0.025, 0.075)])).tolist()
         cfg.ENV.MANO_FINAL_TARGET = (np.array([cfg.ENV.TARGET_POSITION_X, cfg.ENV.TARGET_POSITION_Y, cfg.ENV.PRIMITIVE_OBJECT_SIZE / 2]) + np.random.uniform(-1, 1, 3) * cfg.ENV.PRIMITIVE_OBJECT_SIZE / 4).tolist()
         distance = np.random.uniform(0.05, 0.15)
         angle = np.random.uniform(0, 2 * np.pi)
-        cfg.ENV.MANO_FINAL_BASE = (cfg.ENV.MANO_FINAL_TARGET + np.array([distance * np.cos(angle), distance * np.sin(angle), 0.05])).tolist()
+        cfg.ENV.MANO_FINAL_BASE = (cfg.ENV.MANO_FINAL_TARGET + np.array([distance * np.cos(angle), distance * np.sin(angle), np.random.uniform(0.025, 0.075)])).tolist()
         env = gym.make('GestureILManoPandaEnv-v0', cfg=cfg)
         env.reset()
 
@@ -89,7 +88,7 @@ def main():
             store_image(demonstration_render_dir, env)
             actions.append(action)
             env.step(action)
-            if env.frame > 75:
+            if env.frame > 40:
                 fail = True
                 break
         fail = fail or not np.allclose(env.primitive_object.bodies[cfg.ENV.PICKED_OBJECT_IDX].link_state[0, 0, 0:2], [cfg.ENV.TARGET_POSITION_X, cfg.ENV.TARGET_POSITION_Y], atol=0.03)
@@ -102,6 +101,10 @@ def main():
         env.close()
         t += 1
 
+def generate_random_position():
+    distance = np.random.uniform(0.5, 0.7)
+    angle = np.random.uniform(0, 3 * np.pi / 4) - 3 * np.pi / 8
+    return [float(distance * np.cos(angle)) - 0.6, float(distance * np.sin(angle))]
 
 def store_image(render_dir, env):
     images = env.render_offscreen()
