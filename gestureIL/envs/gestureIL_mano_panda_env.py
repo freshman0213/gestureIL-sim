@@ -91,65 +91,86 @@ class GestureILManoPandaEnv(easysim.SimulatorEnv):
             self.pre_step(action)
             self._simulator.step()
         else:
-            if action[-1] == 1:
-                # Downward Movement
-                panda_ee_original_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
-
-                panda_ee_current_position = panda_ee_original_position
-                panda_ee_target_position = np.concatenate((panda_ee_original_position[:2], [self.cfg.ENV.PRIMITIVE_OBJECT_SIZE + 0.08]))
-                target_arm_angles = pybullet.calculateInverseKinematics(
-                    self.panda.body.contact_id[0], self.panda.LINK_IND_HAND-1, panda_ee_target_position, [1, 0, 0, 0]
-                )[:7]
-                self.pre_step(np.concatenate((target_arm_angles, self.panda.body.dof_target_position[-2:])))
-                num_steps = 0
-                while not np.allclose(panda_ee_current_position, panda_ee_target_position, atol=1e-2):
-                    num_steps += 1
-                    self._simulator.step()
-                    panda_ee_current_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
-
-                    if num_steps > 600:
-                        break
-                
-                # Manipulation
-                target_fingers_width = 0 if self.panda.body.dof_target_position[-1] > 0 else 0.08
-                self.pre_step(np.concatenate((self.panda.body.dof_target_position[:-2], [target_fingers_width / 2, target_fingers_width / 2])))
-                for _ in range(int(0.1 / self.cfg.SIM.TIME_STEP)):
-                    self._simulator.step()
-
-                # Upward Movement
-                panda_ee_current_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
-                panda_ee_target_position = panda_ee_original_position
-                target_arm_angles = pybullet.calculateInverseKinematics(
-                    self.panda.body.contact_id[0], self.panda.LINK_IND_HAND-1, panda_ee_original_position, [1, 0, 0, 0]
-                )[:7] 
-                self.pre_step(np.concatenate((target_arm_angles, self.panda.body.dof_target_position[-2:])))
-                num_steps = 0
-                while not np.allclose(panda_ee_current_position, panda_ee_target_position, atol=1e-2):
-                    num_steps += 1
-                    self._simulator.step()
-                    panda_ee_current_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
-
-                    if num_steps > 600:
-                        break
-            # Planar Movement
+            action = np.array(action)
+            if action.shape[-1] == 4:
+                self.panda_discrete_step(action)
             else:
-                ##### Continuous Actions #####
-                panda_ee_current_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
-                panda_ee_target_position = np.concatenate((panda_ee_current_position[:2] + action[:2], [panda_ee_current_position[-1]]))
-                panda_ee_target_orientation = [1, 0, 0, 0]
-                target_arm_angles = pybullet.calculateInverseKinematics(
-                    self.panda.body.contact_id[0], self.panda.LINK_IND_HAND-1, panda_ee_target_position, panda_ee_target_orientation
-                )[:7]
-
-                ##### TODO: Discrete Actions #####
-
-                self.pre_step(np.concatenate((target_arm_angles, self.panda.body.dof_target_position[-2:])))
-                # Notes: High-level control runs at 10 Hz
-                for _ in range(int(0.1 / self.cfg.SIM.TIME_STEP)):
-                    self._simulator.step()
+                self.panda_continuous_step(action)
 
         observation, reward, done, info = self.post_step(action)
         return observation, reward, done, info
+
+    def panda_discrete_step(self, action):
+        action = np.clip(action, 0, 4)
+        panda_ee_displacement = (action[:3] - 2) * 0.025
+        panda_ee_target_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy() + panda_ee_displacement
+        target_arm_angles = pybullet.calculateInverseKinematics(
+            self.panda.body.contact_id[0], self.panda.LINK_IND_HAND-1, panda_ee_target_position, [1, 0, 0, 0]
+        )[:7]
+        if action[-1] == 0:
+            target_fingers_width = 0.08
+        else:
+            target_fingers_width = 0
+        self.pre_step(np.concatenate((target_arm_angles, [target_fingers_width / 2, target_fingers_width / 2])))
+        # Notes: High-level control runs at 5 Hz
+        for _ in range(int(0.2 / self.cfg.SIM.TIME_STEP)):
+            self._simulator.step()
+
+    def panda_continuous_step(self, action):
+        if action[-1] == 1:
+            # Downward Movement
+            panda_ee_original_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
+
+            panda_ee_current_position = panda_ee_original_position
+            panda_ee_target_position = np.concatenate((panda_ee_original_position[:2], [self.cfg.ENV.PRIMITIVE_OBJECT_SIZE + 0.08]))
+            target_arm_angles = pybullet.calculateInverseKinematics(
+                self.panda.body.contact_id[0], self.panda.LINK_IND_HAND-1, panda_ee_target_position, [1, 0, 0, 0]
+            )[:7]
+            self.pre_step(np.concatenate((target_arm_angles, self.panda.body.dof_target_position[-2:])))
+            num_steps = 0
+            while not np.allclose(panda_ee_current_position, panda_ee_target_position, atol=1e-2):
+                num_steps += 1
+                self._simulator.step()
+                panda_ee_current_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
+
+                if num_steps > 600:
+                    break
+            
+            # Manipulation
+            target_fingers_width = 0 if self.panda.body.dof_target_position[-1] > 0 else 0.08
+            self.pre_step(np.concatenate((self.panda.body.dof_target_position[:-2], [target_fingers_width / 2, target_fingers_width / 2])))
+            for _ in range(int(0.1 / self.cfg.SIM.TIME_STEP)):
+                self._simulator.step()
+
+            # Upward Movement
+            panda_ee_current_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
+            panda_ee_target_position = panda_ee_original_position
+            target_arm_angles = pybullet.calculateInverseKinematics(
+                self.panda.body.contact_id[0], self.panda.LINK_IND_HAND-1, panda_ee_original_position, [1, 0, 0, 0]
+            )[:7] 
+            self.pre_step(np.concatenate((target_arm_angles, self.panda.body.dof_target_position[-2:])))
+            num_steps = 0
+            while not np.allclose(panda_ee_current_position, panda_ee_target_position, atol=1e-2):
+                num_steps += 1
+                self._simulator.step()
+                panda_ee_current_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
+
+                if num_steps > 600:
+                    break
+        # Planar Movement
+        else:
+            ##### Continuous Actions #####
+            panda_ee_current_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
+            panda_ee_target_position = np.concatenate((panda_ee_current_position[:2] + action[:2], [panda_ee_current_position[-1]]))
+            panda_ee_target_orientation = [1, 0, 0, 0]
+            target_arm_angles = pybullet.calculateInverseKinematics(
+                self.panda.body.contact_id[0], self.panda.LINK_IND_HAND-1, panda_ee_target_position, panda_ee_target_orientation
+            )[:7]
+
+            self.pre_step(np.concatenate((target_arm_angles, self.panda.body.dof_target_position[-2:])))
+            # Notes: High-level control runs at 10 Hz
+            for _ in range(int(0.1 / self.cfg.SIM.TIME_STEP)):
+                self._simulator.step()
     
     @property
     def frame(self):
