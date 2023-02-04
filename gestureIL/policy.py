@@ -25,6 +25,7 @@ class ScriptedPolicy(Policy):
         self._target_position = (self._cfg.ENV.TARGET_POSITION_X, self._cfg.ENV.TARGET_POSITION_Y)
 
         self._execution_phase = 0
+        self._max_movement = 0.05
     
     def _complete_movement(self):
         panda_ee_position = self._panda.body.link_state[0, self._panda.LINK_IND_HAND, 0:3].numpy()[:2]
@@ -42,7 +43,7 @@ class ScriptedPolicy(Policy):
             displacement = self._target_ee_position - panda_ee_position[:2]
             distance = np.linalg.norm(displacement)
             if not self._complete_movement():
-                return np.concatenate((displacement * 0.05 / max(0.05, distance), [0]))
+                return np.concatenate((displacement * self._max_movement / max(self._max_movement, distance), [0]))
             self._execution_phase += 1
             return np.concatenate(([0, 0], [1]))
         if self._execution_phase == 1:
@@ -51,7 +52,7 @@ class ScriptedPolicy(Policy):
             displacement = self._target_ee_position - panda_ee_position[:2]
             distance = np.linalg.norm(displacement)
             if not self._complete_movement():
-                return np.concatenate((displacement * 0.05 / max(0.05, distance), [0]))
+                return np.concatenate((displacement * self._max_movement / max(self._max_movement, distance), [0]))
             self._execution_phase += 1
             return np.concatenate(([0, 0], [1]))
         if self._execution_phase == 2:
