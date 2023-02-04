@@ -12,7 +12,7 @@ def main():
     
     np.random.seed(cfg.ENV.RANDOM_SEED)
     t = 0
-    while t < 500:
+    while t < 1000:
         cfg.ENV.TARGET_POSITION_X, cfg.ENV.TARGET_POSITION_Y = generate_random_position()
         cfg.ENV.NUM_PRIMITIVE_OBJECTS = np.random.randint(2, 5)
         base_positions = []
@@ -82,12 +82,14 @@ def main():
         action = policy.react(None)
         store_image(demonstration_render_dir, env)
         actions.append(action)
-        env.step(action)
+        noise = np.concatenate((np.random.normal(0, 0.5, 2) * 0.01, [0]))
+        env.step(action + noise)
         while not policy.finished():
             action = policy.react(None)
             store_image(demonstration_render_dir, env)
             actions.append(action)
-            env.step(action)
+            noise = np.concatenate((np.random.normal(0, 0.5, 2) * 0.01, [0]))
+            env.step(action + noise)
             if env.frame > 40:
                 fail = True
                 break
