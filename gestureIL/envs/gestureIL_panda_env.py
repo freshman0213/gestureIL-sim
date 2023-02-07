@@ -1,21 +1,19 @@
-import easysim
 import numpy as np
 import pybullet
 
+from gestureIL.envs.gestureIL_env import GestureILEnv
 from gestureIL.objects.table import Table
 from gestureIL.objects.panda import Panda
 from gestureIL.objects.primitive_object import PrimitiveObject
 from gestureIL.objects.mano import MANO
 
-class GestureILPandaEnv(easysim.SimulatorEnv):
+class GestureILPandaEnv(GestureILEnv):
     # Notes: This is called by easysim.SimulatorEnv __init__()
     def init(self):
+        super().init()
         self._table = Table(self.cfg, self.scene)
         self._panda = Panda(self.cfg, self.scene)
         self._primitive_object = PrimitiveObject(self.cfg, self.scene)
-
-        if self.cfg.ENV.RENDER_OFFSCREEN:
-            self._render_offscreen_init()
 
     @property
     def table(self):
@@ -29,62 +27,23 @@ class GestureILPandaEnv(easysim.SimulatorEnv):
     def primitive_object(self):
         return self._primitive_object
 
-    @property
-    def mano_hand(self):
-        return self._mano_hand
-
-    def _render_offscreen_init(self):
-        self._cameras = []
-        for i in range(self.cfg.ENV.NUM_OFFSCREEN_RENDERER_CAMERA):
-            camera = easysim.Camera()
-            camera.name = f"offscreen_renderer_{i}"
-            camera.width = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_WIDTH
-            camera.height = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_HEIGHT
-            camera.vertical_fov = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_VERTICAL_FOV
-            camera.near = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_NEAR
-            camera.far = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_FAR
-            camera.position = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_POSITION[i]
-            camera.target = self.cfg.ENV.OFFSCREEN_RENDERER_CAMERA_TARGET[i]
-            camera.up_vector = (0.0, 0.0, 1.0)
-            self.scene.add_camera(camera)
-            self._cameras.append(camera)
-    
-    def render_offscreen(self):
-        if not self.cfg.ENV.RENDER_OFFSCREEN:
-            raise ValueError(
-                "`render_offscreen()` can only be called when RENDER_OFFSCREEN is set to True"
-            )
-        return [camera.color[0].numpy() for camera in self._cameras]
-
     def pre_reset(self, env_ids):
         pass
-
-    def post_reset(self, env_ids):
-        self._frame = 0
-        return self._get_observation()
 
     def pre_step(self, action):
         self.panda.step(action)
 
-    def post_step(self, action):
-        self._frame += 1
-        observation = self._get_observation()
-        reward = self._get_reward()
-        done = self._get_done()
-        info = self._get_info()
-        return observation, reward, done, info
-    
     def step(self, action):
         action = np.array(action)
         if action.shape[-1] == 4:
-            self.panda_discrete_step(action)
+            self._panda_discrete_step(action)
         else:
-            self.panda_continuous_step(action)
+            self._panda_continuous_step(action)
 
         observation, reward, done, info = self.post_step(action)
         return observation, reward, done, info
 
-    def panda_discrete_step(self, action):
+    def _panda_discrete_step(self, action):
         action = np.clip(action, 0, 4)
         panda_ee_displacement = (action[:3] - 2) * 0.025
         panda_ee_target_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy() + panda_ee_displacement
@@ -100,7 +59,32 @@ class GestureILPandaEnv(easysim.SimulatorEnv):
         for _ in range(int(0.2 / self.cfg.SIM.TIME_STEP)):
             self._simulator.step()
 
-    def panda_continuous_step(self, action):
+    def _object_picked(self):
+        finger1_contact, finger2_contact = False, False
+        contact = self.contact[0]
+        _picked_object = self._primitive_object.bodies[self.cfg.ENV.PICKED_OBJECT_IDX]
+        if len(contact) != 0:
+            contact_panda2object = contact[
+                (contact['body_id_a'] == self._panda.body.contact_id[0])
+                & (contact['body_id_b'] == _picked_object.contact_id[0])
+            ]
+            contact_object2panda = contact[
+                (contact['body_id_a'] == _picked_object.contact_id[0])
+                & (contact['body_id_b'] == self._panda.body.contact_id[0])
+            ]
+            contact_object2panda[["body_id_a", "body_id_b"]] = contact_object2panda[["body_id_b", "body_id_a"]]
+            contact_object2panda[["link_id_a", "link_id_b"]] = contact_object2panda[["link_id_b", "link_id_a"]]
+            contact_object2panda[["position_a_world", "position_b_world"]] = contact_object2panda[["position_b_world", "position_a_world"]]
+            contact_object2panda[["position_a_link", "position_b_link"]] = contact_object2panda[["position_b_link", "position_a_link"]]
+            contact_object2panda["normal"]["x"] *= -1
+            contact_object2panda["normal"]["y"] *= -1
+            contact_object2panda["normal"]["z"] *= -1
+            contact = np.concatenate((contact_panda2object, contact_object2panda))
+            finger1_contact = np.any(contact['link_id_a'] == self._panda.LINK_IND_FINGERS[0])
+            finger2_contact = np.any(contact['link_id_a'] == self._panda.LINK_IND_FINGERS[1])
+        return finger1_contact and finger2_contact
+
+    def _panda_continuous_step(self, action):
         if action[-1] == 1:
             # Downward Movement
             panda_ee_original_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
@@ -120,11 +104,14 @@ class GestureILPandaEnv(easysim.SimulatorEnv):
                 if num_steps > 600:
                     break
             
-            # Manipulation
             target_fingers_width = 0 if self.panda.body.dof_target_position[-1] > 0 else 0.08
             self.pre_step(np.concatenate((self.panda.body.dof_target_position[:-2], [target_fingers_width / 2, target_fingers_width / 2])))
             for _ in range(int(0.1 / self.cfg.SIM.TIME_STEP)):
                 self._simulator.step()
+            if target_fingers_width == 0 and not self._object_picked():
+                self.pre_step(np.concatenate((self.panda.body.dof_target_position[:-2], [0.04, 0.04])))
+                for _ in range(int(0.1 / self.cfg.SIM.TIME_STEP)):
+                    self._simulator.step()
 
             # Upward Movement
             panda_ee_current_position = self.panda.body.link_state[0, self.panda.LINK_IND_HAND, 0:3].numpy()
@@ -156,10 +143,6 @@ class GestureILPandaEnv(easysim.SimulatorEnv):
             for _ in range(int(0.1 / self.cfg.SIM.TIME_STEP)):
                 self._simulator.step()
 
-    @property
-    def frame(self):
-        return self._frame
-
     def _get_observation(self):
         # Notes: This observation space is adapted from the PandaPickAndPlace-v3 of panda-gym
         #   (We discard achieved_goal because it is redundant and desired_goal because we need to infer it from the gesture video)
@@ -177,12 +160,3 @@ class GestureILPandaEnv(easysim.SimulatorEnv):
             # task_obs = np.concatenate([task_obs, object_position, object_rotation, object_velocity, object_angular_velocity]).astype(np.float32)
             task_obs = np.concatenate([task_obs, object_position, object_rotation]).astype(np.float32)
         return np.concatenate([robot_obs, task_obs])
-        
-    def _get_reward(self):
-        return None
-
-    def _get_done(self):
-        return False
-
-    def _get_info(self):
-        return {}
