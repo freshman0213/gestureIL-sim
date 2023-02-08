@@ -1,14 +1,13 @@
 import os
 import gym
-import cv2
 import shutil
 import numpy as np
 import argparse
-from PIL import Image
 import torch
 from torchvision import transforms
 
 from gestureIL.config import get_cfg
+from utils import ObjectInGridConfigGenerator, generate_random_config, get_visual_observation
 from gestureIL.policy import LearnedPolicy
 from modules.attention_predictor import AttentionActionPredictor
 from modules.encoder import MyEncoder
@@ -22,45 +21,11 @@ def main(args):
     cfg.merge_from_list(args.opts)
     
     np.random.seed(cfg.ENV.RANDOM_SEED)
+    config_generator = ObjectInGridConfigGenerator(split="test")
     t, num_success = 0, 0
     while t < args.num_trials:
-        cfg.ENV.TARGET_POSITION_X, cfg.ENV.TARGET_POSITION_Y = generate_random_position()
-        cfg.ENV.NUM_PRIMITIVE_OBJECTS = np.random.randint(2, 5)
-        base_positions = []
-        for i in range(cfg.ENV.NUM_PRIMITIVE_OBJECTS):
-            while True:
-                candidate_position = generate_random_position()
-                conflict = False
-                for j in range(i):
-                    conflict = conflict or abs(candidate_position[0] - base_positions[j][0]) < cfg.ENV.PRIMITIVE_OBJECT_SIZE or abs(candidate_position[1] - base_positions[j][1]) < cfg.ENV.PRIMITIVE_OBJECT_SIZE 
-                if not conflict:
-                    break
-            base_positions.append(candidate_position + [cfg.ENV.PRIMITIVE_OBJECT_SIZE / 2])
-        cfg.ENV.PRIMITIVE_OBJECT_BASE_POSITION = base_positions
-        hand_model = np.random.choice([
-            '20200709-subject-01',
-            '20200813-subject-02',
-            '20200820-subject-03',
-            '20200903-subject-04',
-            '20200908-subject-05',
-            '20200918-subject-06',
-            '20200928-subject-07',
-            '20201002-subject-08',
-            '20201015-subject-09',
-            '20201022-subject-10'
-        ])
-        hand_side = np.random.choice(['left', 'right'])
-        cfg.ENV.MANO_MODEL_FILENAME = os.path.join('gestureIL/objects/data/assets', hand_model + '_' + hand_side, 'mano.urdf')
-        hand_pose = np.random.randint(1, 5)
-        cfg.ENV.MANO_POSE_FILENAME = os.path.join('gestureIL/objects/data/mano_poses', str(hand_pose) + '_' + hand_side + '.npy')
-        cfg.ENV.MANO_INITIAL_TARGET = (np.array(cfg.ENV.PRIMITIVE_OBJECT_BASE_POSITION[cfg.ENV.PICKED_OBJECT_IDX]) + np.random.uniform(-1, 1, 3) * cfg.ENV.PRIMITIVE_OBJECT_SIZE / 4).tolist()
-        distance = np.random.uniform(0.05, 0.15)
-        angle = np.random.uniform(0, 2 * np.pi)
-        cfg.ENV.MANO_INITIAL_BASE = (cfg.ENV.MANO_INITIAL_TARGET + np.array([distance * np.cos(angle), distance * np.sin(angle), np.random.uniform(0.025, 0.075)])).tolist()
-        cfg.ENV.MANO_FINAL_TARGET = (np.array([cfg.ENV.TARGET_POSITION_X, cfg.ENV.TARGET_POSITION_Y, cfg.ENV.PRIMITIVE_OBJECT_SIZE / 2]) + np.random.uniform(-1, 1, 3) * cfg.ENV.PRIMITIVE_OBJECT_SIZE / 4).tolist()
-        distance = np.random.uniform(0.05, 0.15)
-        angle = np.random.uniform(0, 2 * np.pi)
-        cfg.ENV.MANO_FINAL_BASE = (cfg.ENV.MANO_FINAL_TARGET + np.array([distance * np.cos(angle), distance * np.sin(angle), np.random.uniform(0.025, 0.075)])).tolist()
+        # cfg = generate_random_config(cfg)
+        cfg = config_generator.generate_random_config(cfg)
         env = gym.make('GestureILManoPandaEnv-v0', cfg=cfg)
         env.reset()
 
@@ -94,6 +59,7 @@ def main(args):
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
+            target_transform = lambda x: np.concatenate((x[:2] / 20, x[2:]))
         elif args.model == "MyEncoder":
             agent = MyEncoder()
             agent.load_state_dict(torch.load(args.checkpoint_path))
@@ -108,6 +74,7 @@ def main(args):
         else:
             observations = get_visual_observation(env)
         action = policy.react(observations)
+        action = target_transform(action)
         env.step(action)
         while not policy.finished():
             if args.log_dir is not None:
@@ -115,30 +82,16 @@ def main(args):
             else:
                 observations = get_visual_observation(env)
             action = policy.react(observations)
+            action = target_transform(action)
             env.step(action)
             if env.frame > 100:
                 break
         if np.allclose(env.primitive_object.bodies[cfg.ENV.PICKED_OBJECT_IDX].link_state[0, 0, 0:2], [cfg.ENV.TARGET_POSITION_X, cfg.ENV.TARGET_POSITION_Y], atol=0.03):
             num_success += 1
+            print(f"Succeed in trial: {t}!!!")
         env.close()
         t += 1
     print(f"Task success rate: {num_success / t:.4f}")
-
-def generate_random_position():
-    distance = np.random.uniform(0.5, 0.7)
-    angle = np.random.uniform(0, 3 * np.pi / 4) - 3 * np.pi / 8
-    return [float(distance * np.cos(angle)) - 0.6, float(distance * np.sin(angle))]
-    
-def get_visual_observation(env, store_dir=None):
-    images = env.render_offscreen()
-    if store_dir is not None:
-        for i in range(len(images)):
-            os.makedirs(os.path.join(store_dir, str(i)), exist_ok=True)
-            render_file = os.path.join(store_dir, str(i), f'{env.frame:04d}.jpg')
-            cv2.imwrite(render_file, images[i][:, :, [2, 1, 0, 3]])
-    for i, image in enumerate(images):
-        images[i] = Image.fromarray(image, mode="RGBA").convert("RGB")
-    return images
 
 
 if __name__ == '__main__':
